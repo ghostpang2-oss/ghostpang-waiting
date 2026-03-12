@@ -2,24 +2,59 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>고스트팡 대기 목록</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>고스트팡 관리자</title>
 
 <style>
+
 body{
+margin:0;
 background:#000;
 color:#fff;
 font-family:Arial;
-text-align:center;
-margin:0;
-padding:40px;
+padding:30px;
+}
+
+h1{
+margin-bottom:20px;
+}
+
+.panel{
+background:#111;
+padding:20px;
+border-radius:15px;
+margin-bottom:30px;
+}
+
+input,select,button{
+height:40px;
+padding:0 10px;
+margin-right:10px;
+border-radius:8px;
+border:none;
+}
+
+input,select{
+background:#222;
+color:#fff;
+}
+
+button{
+background:#ff7a00;
+color:#fff;
+font-weight:bold;
+cursor:pointer;
+}
+
+.boards{
+display:flex;
+gap:30px;
 }
 
 .board{
-width:45%;
-display:inline-block;
-margin:20px;
+flex:1;
 background:#111;
-border-radius:20px;
+border-radius:15px;
 padding:20px;
 }
 
@@ -31,14 +66,6 @@ border-top:8px solid #ff7a00;
 border-top:8px solid #4285f4;
 }
 
-h2{
-margin:0 0 20px 0;
-}
-
-.empty{
-opacity:0.6;
-}
-
 table{
 width:100%;
 border-collapse:collapse;
@@ -47,6 +74,20 @@ border-collapse:collapse;
 td{
 padding:10px;
 border-bottom:1px solid #333;
+text-align:center;
+}
+
+.btn{
+padding:5px 10px;
+font-size:12px;
+}
+
+.enter{
+background:#666;
+}
+
+.delete{
+background:#c0392b;
 }
 
 </style>
@@ -54,22 +95,44 @@ border-bottom:1px solid #333;
 
 <body>
 
-<h1>고스트팡 대기 목록</h1>
+<h1>고스트팡 관리자 화면</h1>
+
+<div class="panel">
+
+<select id="roomType">
+<option value="big">큰방</option>
+<option value="small">작은방</option>
+</select>
+
+<input id="teamName" placeholder="팀 이름">
+
+<input id="peopleCount" type="number" placeholder="인원">
+
+<input id="memo" placeholder="메모">
+
+<button id="addBtn">대기 추가</button>
+
+</div>
+
+<div class="boards">
 
 <div class="board big">
 <h2>큰방 대기</h2>
-<div id="bigBoard">대기 없음</div>
+<div id="bigBoard"></div>
 </div>
 
 <div class="board small">
 <h2>작은방 대기</h2>
-<div id="smallBoard">대기 없음</div>
+<div id="smallBoard"></div>
+</div>
+
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, updateDoc }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyADGR45Y4rzrLsQk7dt05iCIu2d0NSe3NI",
@@ -85,28 +148,72 @@ const db = getFirestore(app);
 
 const queueRef = collection(db,"ghostpang_waiting");
 
-const q = query(queueRef,orderBy("createdAt","asc"));
+const roomTypeEl = document.getElementById("roomType");
+const teamNameEl = document.getElementById("teamName");
+const peopleCountEl = document.getElementById("peopleCount");
+const memoEl = document.getElementById("memo");
+const addBtn = document.getElementById("addBtn");
 
-onSnapshot(q,(snapshot)=>{
+async function addWaiting(){
 
-const rows = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+const roomType = roomTypeEl.value;
+const teamName = teamNameEl.value;
+const peopleCount = peopleCountEl.value;
+const memo = memoEl.value;
 
-const big = rows.filter(v=>v.roomType==="big" && v.status==="waiting");
-const small = rows.filter(v=>v.roomType==="small" && v.status==="waiting");
+if(!teamName){
+alert("팀 이름 입력");
+return;
+}
+
+await addDoc(queueRef,{
+roomType,
+teamName,
+peopleCount,
+memo,
+status:"waiting",
+createdAt:serverTimestamp()
+})
+
+teamNameEl.value=""
+peopleCountEl.value=""
+memoEl.value=""
+
+}
+
+async function enterTeam(id){
+await updateDoc(doc(db,"ghostpang_waiting",id),{
+status:"entered"
+})
+}
+
+async function removeTeam(id){
+
+if(!confirm("삭제하시겠습니까?")) return
+
+await deleteDoc(doc(db,"ghostpang_waiting",id))
+
+}
 
 function render(list){
 
-if(list.length===0) return "<div class='empty'>현재 대기 없음</div>";
+if(list.length===0) return "대기 없음"
 
-let html="<table>";
+let html="<table>"
 
 list.forEach((v,i)=>{
 
-html+=`<tr>
+html+=`
+<tr>
 <td>${i+1}</td>
 <td>${v.teamName}</td>
 <td>${v.peopleCount}명</td>
-</tr>`
+<td>
+<button class="btn enter" data-enter="${v.id}">입장</button>
+<button class="btn delete" data-del="${v.id}">삭제</button>
+</td>
+</tr>
+`
 
 })
 
@@ -116,8 +223,33 @@ return html
 
 }
 
+function bindButtons(){
+
+document.querySelectorAll("[data-enter]").forEach(btn=>{
+btn.onclick=()=>enterTeam(btn.dataset.enter)
+})
+
+document.querySelectorAll("[data-del]").forEach(btn=>{
+btn.onclick=()=>removeTeam(btn.dataset.del)
+})
+
+}
+
+addBtn.onclick=addWaiting
+
+const q = query(queueRef,orderBy("createdAt","asc"))
+
+onSnapshot(q,(snapshot)=>{
+
+const rows = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}))
+
+const big = rows.filter(v=>v.roomType==="big" && v.status==="waiting")
+const small = rows.filter(v=>v.roomType==="small" && v.status==="waiting")
+
 document.getElementById("bigBoard").innerHTML=render(big)
 document.getElementById("smallBoard").innerHTML=render(small)
+
+bindButtons()
 
 })
 
