@@ -1,36 +1,7 @@
 <!DOCTYPE html>
-          <div class="empty">현재 대기팀이 없습니다</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getFirestore, collection, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyADGR45Y4rzrLsQk7dt05iCIu2d0NSe3NI",
-      authDomain: "ghostpang.firebaseapp.com",
-      projectId: "ghostpang",
-      storageBucket: "ghostpang.firebasestorage.app",
-      messagingSenderId: "494956996773",
-      appId: "1:494956996773:web:b3346f2116e88d8192054c"
-    };
-
-    const BIG_WAIT_MIN = 20;
-    const SMALL_WAIT_MIN = 20;
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const queueRef = collection(db, 'ghostpang_waiting');
-
-    function waitText(index, unitMinutes) {
-      const minutes = index * unitMinutes;
-      return minutes === 0 ? '곧 입장' : `약 ${minutes}분`;
     }
 
-    function renderBoard(list, unitMinutes) {
+    function renderTable(list) {
       const waiting = list.filter(v => v.status === 'waiting');
       if (waiting.length === 0) {
         return '<div class="empty">현재 대기팀이 없습니다</div>';
@@ -43,7 +14,9 @@
               <th>순번</th>
               <th>팀</th>
               <th>인원</th>
-              <th>예상대기</th>
+              <th>시간</th>
+              <th>메모</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
@@ -55,7 +28,14 @@
             <td>${index + 1}</td>
             <td>${item.teamName}</td>
             <td>${item.peopleCount}명</td>
-            <td class="wait">${waitText(index, unitMinutes)}</td>
+            <td>${timeText(item.createdAt)}</td>
+            <td>${item.memo || '-'}</td>
+            <td>
+              <div class="btn-row">
+                <button class="btn-gray" data-enter="${item.id}">입장</button>
+                <button class="btn-red" data-delete="${item.id}">삭제</button>
+              </div>
+            </td>
           </tr>
         `;
       });
@@ -64,23 +44,30 @@
       return html;
     }
 
-    function renderSummary(list, unitMinutes) {
-      const waiting = list.filter(v => v.status === 'waiting');
-      const teams = waiting.length;
-      const maxWait = teams > 0 ? (teams - 1) * unitMinutes : 0;
-      return teams === 0 ? '현재 대기 0팀' : `현재 대기 ${teams}팀 · 예상 최대 ${maxWait}분`;
+    function bindButtons() {
+      document.querySelectorAll('[data-enter]').forEach(btn => {
+        btn.onclick = () => enterTeam(btn.dataset.enter);
+      });
+      document.querySelectorAll('[data-delete]').forEach(btn => {
+        btn.onclick = () => removeTeam(btn.dataset.delete);
+      });
     }
+
+    addBtn.addEventListener('click', addWaiting);
+    [teamNameEl, peopleCountEl, memoEl].forEach(el => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addWaiting();
+      });
+    });
 
     const q = query(queueRef, orderBy('createdAt', 'asc'));
     onSnapshot(q, snapshot => {
       const rows = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
       const big = rows.filter(v => v.roomType === 'big');
       const small = rows.filter(v => v.roomType === 'small');
-
-      document.getElementById('bigSummary').textContent = renderSummary(big, BIG_WAIT_MIN);
-      document.getElementById('smallSummary').textContent = renderSummary(small, SMALL_WAIT_MIN);
-      document.getElementById('bigBoard').innerHTML = renderBoard(big, BIG_WAIT_MIN);
-      document.getElementById('smallBoard').innerHTML = renderBoard(small, SMALL_WAIT_MIN);
+      document.getElementById('bigBoard').innerHTML = renderTable(big);
+      document.getElementById('smallBoard').innerHTML = renderTable(small);
+      bindButtons();
     }, error => {
       console.error(error);
       document.getElementById('bigBoard').innerHTML = '<div class="empty">연결 오류가 발생했습니다</div>';
