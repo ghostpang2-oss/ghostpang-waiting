@@ -1,78 +1,127 @@
 <!DOCTYPE html>
-    }
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>고스트팡 대기 목록</title>
 
-    function renderTable(list) {
-      const waiting = list.filter(v => v.status === 'waiting');
-      if (waiting.length === 0) {
-        return '<div class="empty">현재 대기팀이 없습니다</div>';
-      }
+<style>
+body{
+background:#000;
+color:#fff;
+font-family:Arial;
+text-align:center;
+margin:0;
+padding:40px;
+}
 
-      let html = `
-        <table>
-          <thead>
-            <tr>
-              <th>순번</th>
-              <th>팀</th>
-              <th>인원</th>
-              <th>시간</th>
-              <th>메모</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
+.board{
+width:45%;
+display:inline-block;
+margin:20px;
+background:#111;
+border-radius:20px;
+padding:20px;
+}
 
-      waiting.forEach((item, index) => {
-        html += `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${item.teamName}</td>
-            <td>${item.peopleCount}명</td>
-            <td>${timeText(item.createdAt)}</td>
-            <td>${item.memo || '-'}</td>
-            <td>
-              <div class="btn-row">
-                <button class="btn-gray" data-enter="${item.id}">입장</button>
-                <button class="btn-red" data-delete="${item.id}">삭제</button>
-              </div>
-            </td>
-          </tr>
-        `;
-      });
+.big{
+border-top:8px solid #ff7a00;
+}
 
-      html += '</tbody></table>';
-      return html;
-    }
+.small{
+border-top:8px solid #4285f4;
+}
 
-    function bindButtons() {
-      document.querySelectorAll('[data-enter]').forEach(btn => {
-        btn.onclick = () => enterTeam(btn.dataset.enter);
-      });
-      document.querySelectorAll('[data-delete]').forEach(btn => {
-        btn.onclick = () => removeTeam(btn.dataset.delete);
-      });
-    }
+h2{
+margin:0 0 20px 0;
+}
 
-    addBtn.addEventListener('click', addWaiting);
-    [teamNameEl, peopleCountEl, memoEl].forEach(el => {
-      el.addEventListener('keydown', e => {
-        if (e.key === 'Enter') addWaiting();
-      });
-    });
+.empty{
+opacity:0.6;
+}
 
-    const q = query(queueRef, orderBy('createdAt', 'asc'));
-    onSnapshot(q, snapshot => {
-      const rows = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-      const big = rows.filter(v => v.roomType === 'big');
-      const small = rows.filter(v => v.roomType === 'small');
-      document.getElementById('bigBoard').innerHTML = renderTable(big);
-      document.getElementById('smallBoard').innerHTML = renderTable(small);
-      bindButtons();
-    }, error => {
-      console.error(error);
-      document.getElementById('bigBoard').innerHTML = '<div class="empty">연결 오류가 발생했습니다</div>';
-      document.getElementById('smallBoard').innerHTML = '<div class="empty">연결 오류가 발생했습니다</div>';
-    });
-  </script>
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+td{
+padding:10px;
+border-bottom:1px solid #333;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>고스트팡 대기 목록</h1>
+
+<div class="board big">
+<h2>큰방 대기</h2>
+<div id="bigBoard">대기 없음</div>
+</div>
+
+<div class="board small">
+<h2>작은방 대기</h2>
+<div id="smallBoard">대기 없음</div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSyADGR45Y4rzrLsQk7dt05iCIu2d0NSe3NI",
+authDomain: "ghostpang.firebaseapp.com",
+projectId: "ghostpang",
+storageBucket: "ghostpang.firebasestorage.app",
+messagingSenderId: "494956996773",
+appId: "1:494956996773:web:b3346f2116e88d8192054c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const queueRef = collection(db,"ghostpang_waiting");
+
+const q = query(queueRef,orderBy("createdAt","asc"));
+
+onSnapshot(q,(snapshot)=>{
+
+const rows = snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));
+
+const big = rows.filter(v=>v.roomType==="big" && v.status==="waiting");
+const small = rows.filter(v=>v.roomType==="small" && v.status==="waiting");
+
+function render(list){
+
+if(list.length===0) return "<div class='empty'>현재 대기 없음</div>";
+
+let html="<table>";
+
+list.forEach((v,i)=>{
+
+html+=`<tr>
+<td>${i+1}</td>
+<td>${v.teamName}</td>
+<td>${v.peopleCount}명</td>
+</tr>`
+
+})
+
+html+="</table>"
+
+return html
+
+}
+
+document.getElementById("bigBoard").innerHTML=render(big)
+document.getElementById("smallBoard").innerHTML=render(small)
+
+})
+
+</script>
+
 </body>
 </html>
