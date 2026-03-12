@@ -1,138 +1,81 @@
-<script type="module">
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyADGR45Y4rzrLsQk7dt05iCIu2d0NSe3NI",
-    authDomain: "ghostpang.firebaseapp.com",
-    projectId: "ghostpang",
-    storageBucket: "ghostpang.firebasestorage.app",
-    messagingSenderId: "494956996773",
-    appId: "1:494956996773:web:b3346f2116e88d8192054c"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const queueRef = collection(db, 'ghostpang_waiting');
-
-  const roomTypeEl = document.getElementById('roomType');
-  const teamNameEl = document.getElementById('teamName');
-  const peopleCountEl = document.getElementById('peopleCount');
-  const memoEl = document.getElementById('memo');
-  const addBtn = document.getElementById('addBtn');
-
-  function timeText(ts) {
-    if (!ts || !ts.toDate) return '-';
-    const d = ts.toDate();
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  }
-
-  async function addWaiting() {
-    const roomType = roomTypeEl.value;
-    const teamName = teamNameEl.value.trim();
-    const peopleCount = Number(peopleCountEl.value);
-    const memo = memoEl.value.trim();
-
-    if (!teamName) {
-      alert('팀 이름을 입력해주세요.');
-      return;
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고스트팡 관리자</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: #fff;
     }
-    if (!peopleCount || peopleCount < 1) {
-      alert('인원을 입력해주세요.');
-      return;
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
     }
-
-    await addDoc(queueRef, {
-      roomType,
-      teamName,
-      peopleCount,
-      memo,
-      status: 'waiting',
-      createdAt: serverTimestamp()
-    });
-
-    teamNameEl.value = '';
-    peopleCountEl.value = '';
-    memoEl.value = '';
-    teamNameEl.focus();
-  }
-
-  async function enterTeam(id) {
-    await updateDoc(doc(db, 'ghostpang_waiting', id), { status: 'entered' });
-  }
-
-  async function removeTeam(id) {
-    const ok = confirm('이 대기팀을 삭제하시겠습니까?');
-    if (!ok) return;
-    await deleteDoc(doc(db, 'ghostpang_waiting', id));
-  }
-
-  function renderTable(list) {
-    const waiting = list.filter(v => v.status === 'waiting');
-    if (waiting.length === 0) {
-      return '<div class=\"empty\">현재 대기팀이 없습니다</div>';
+    h1 {
+      margin: 0 0 10px;
+      font-size: 36px;
     }
-
-    let html = `
-      <table>
-        <thead>
-          <tr>
-            <th>순번</th>
-            <th>팀</th>
-            <th>인원</th>
-            <th>시간</th>
-            <th>메모</th>
-            <th>관리</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-
-    waiting.forEach((item, index) => {
-      html += `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${item.teamName}</td>
-          <td>${item.peopleCount}명</td>
-          <td>${timeText(item.createdAt)}</td>
-          <td>${item.memo || '-'}</td>
-          <td>
-            <div class=\"btn-row\">
-              <button class=\"btn-gray\" data-enter=\"${item.id}\">입장</button>
-              <button class=\"btn-red\" data-delete=\"${item.id}\">삭제</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    });
-
-    html += '</tbody></table>';
-    return html;
-  }
-
-  function bindButtons() {
-    document.querySelectorAll('[data-enter]').forEach(btn => {
-      btn.onclick = () => enterTeam(btn.dataset.enter);
-    });
-    document.querySelectorAll('[data-delete]').forEach(btn => {
-      btn.onclick = () => removeTeam(btn.dataset.delete);
-    });
-  }
-
-  addBtn.addEventListener('click', addWaiting);
-  [teamNameEl, peopleCountEl, memoEl].forEach(el => {
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') addWaiting();
-    });
-  });
-
-  const q = query(queueRef, orderBy('createdAt', 'asc'));
-  onSnapshot(q, snapshot => {
-    const rows = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-    const big = rows.filter(v => v.roomType === 'big');
-    const small = rows.filter(v => v.roomType === 'small');
-    document.getElementById('bigBoard').innerHTML = renderTable(big);
-    document.getElementById('smallBoard').innerHTML = renderTable(small);
-    bindButtons();
-  });
-</script>
+    .sub {
+      color: #bbb;
+      margin-bottom: 24px;
+    }
+    .panel {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 160px 1fr 140px 1fr 140px;
+      gap: 10px;
+    }
+    input, select, button {
+      height: 48px;
+      border-radius: 12px;
+      border: none;
+      padding: 0 14px;
+      font-size: 16px;
+    }
+    input, select {
+      background: #1c1c1c;
+      color: #fff;
+      border: 1px solid #2d2d2d;
+    }
+    button {
+      background: #ff7a00;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .boards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .board {
+      background: #111318;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    .board-head {
+      height: 82px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .big .board-head { background: #ff7a00; }
+    .small .board-head { background: #4285f4; }
+    .board-body { padding: 0; background: #0f1116; }
+</html>
