@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고스트팡 관리자</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #000;
+      color: #fff;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 36px;
+    }
+    .sub {
+      color: #bbb;
+      margin-bottom: 24px;
+    }
+    .panel {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 160px 1fr 140px 1fr 140px;
+      gap: 10px;
+    }
+    input, select, button {
+      height: 48px;
+      border-radius: 12px;
+      border: none;
+      padding: 0 14px;
+      font-size: 16px;
+    }
+    input, select {
+      background: #1c1c1c;
+      color: #fff;
+      border: 1px solid #2d2d2d;
+    }
+    button {
+      background: #ff7a00;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .boards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .board {
+      background: #111318;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    .board-head {
+      height: 82px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .big .board-head { background: #ff7a00; }
+    .small .board-head { background: #4285f4; }
+    .board-body { padding: 0; background: #0f1116; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 14px 10px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 15px;
+    }
+    th {
+      color: #dfe3ea;
+      font-size: 14px;
+      background: rgba(255,255,255,0.03);
+    }
+    .empty {
+      padding: 40px 20px;
+      text-align: center;
+      color: #b7bcc7;
+      font-size: 18px;
+    }
+    .btn-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-gray {
+      background: #4a4a4a;
+      height: 36px;
+      font-size: 13px;
+      padding: 0 10px;
+    }
+    .btn-red {
+      background: #d94b4b;
+      height: 36px;
+      font-size: 13px;
+      padding: 0 10px;
+    }
+    .notice {
+      font-size: 14px;
+      color: #bcbcbc;
+      line-height: 1.7;
+    }
+    .code {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      font-family: Consolas, monospace;
+    }
+    @media (max-width: 980px) {
+      .form-grid { grid-template-columns: 1fr 1fr; }
+      .boards { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+      .board-head { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>고스트팡 관리자 화면</h1>
+    <div class="sub">직원 전용 대기 등록 / 입장 / 삭제</div>
+
+    <div class="panel">
+      <div class="form-grid">
+        <select id="roomType">
+          <option value="big">큰방</option>
+          <option value="small">작은방</option>
+        </select>
+        <input id="teamName" type="text" placeholder="팀 이름 또는 예약자명" />
+        <input id="peopleCount" type="number" min="1" placeholder="인원" />
+        <input id="memo" type="text" placeholder="메모(선택)" />
+        <button id="addBtn">대기 추가</button>
+      </div>
+    </div>
+
+    <div class="boards">
+      <div class="board big">
+        <div class="board-head">큰방 대기</div>
+        <div class="board-body" id="bigBoard"></div>
+      </div>
+      <div class="board small">
+        <div class="board-head">작은방 대기</div>
+        <div class="board-body" id="smallBoard"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:20px;">
+      <div class="notice">
+        손님용 주소는 <span class="code">index.html</span>, 관리자용 주소는 <span class="code">admin.html</span> 입니다.<br>
+        Firebase 설정값을 <span class="code">index.html</span> 과 <span class="code">admin.html</span> 둘 다 똑같이 넣어야 실시간 연동됩니다.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: 'YOUR_API_KEY',
+      authDomain: 'YOUR_PROJECT.firebaseapp.com',
+      projectId: 'YOUR_PROJECT_ID',
+      storageBucket: 'YOUR_PROJECT.appspot.com',
+      messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
+      appId: 'YOUR_APP_ID'
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const queueRef = collection(db, 'ghostpang_waiting');
+
+    const roomTypeEl = document.getElementById('roomType');
+    const teamNameEl = document.getElementById('teamName');
+    const peopleCountEl = document.getElementById('peopleCount');
+    const memoEl = document.getElementById('memo');
+    const addBtn = document.getElementById('addBtn');
+
+    function timeText(ts) {
+      if (!ts || !ts.toDate) return '-';
+      const d = ts.toDate();
+      return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    async function addWaiting() {
+      const roomType = roomTypeEl.value;
+      const teamName = teamNameEl.value.trim();
+      const peopleCount = Number(peopleCountEl.value);
+      const memo = memoEl.value.trim();
+
+      if (!teamName) {
+        alert('팀 이름을 입력해주세요.');
+        return;
+      }
+      if (!peopleCount || peopleCount < 1) {
+        alert('인원을 입력해주세요.');
+        return;
+      }
+
+      await addDoc(queueRef, {
+        roomType,
+        teamName,
+        peopleCount,
+        memo,
+        status: 'waiting',
+        createdAt: serverTimestamp()
+      });
+
+      teamNameEl.value = '';
+      peopleCountEl.value = '';
+      memoEl.value = '';
+      teamNameEl.focus();
+    }
+
+    async function enterTeam(id) {
+      await updateDoc(doc(db, 'ghostpang_waiting', id), { status: 'entered' });
+    }
+
+    async function removeTeam(id) {
+      const ok = confirm('이 대기팀을 삭제하시겠습니까?');
+      if (!ok) return;
+      await deleteDoc(doc(db, 'ghostpang_waiting', id));
+    }
+
+    function renderTable(list) {
+      const waiting = list.filter(v => v.status === 'waiting');
+      if (waiting.length === 0) {
+        return '<div class="empty">현재 대기팀이 없습니다</div>';
+      }
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>순번</th>
+              <th>팀</th>
+              <th>인원</th>
+              <th>시간</th>
+              <th>메모</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      waiting.forEach((item, index) => {
+        html += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${item.teamName}</td>
+            <td>${item.peopleCount}명</td>
+            <td>${timeText(item.createdAt)}</td>
+            <td>${item.memo || '-'}</td>
+            <td>
+              <div class="btn-row">
+                <button class="btn-gray" data-enter="${item.id}">입장</button>
+                <button class="btn-red" data-delete="${item.id}">삭제</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      return html;
+    }
+
+    function bindButtons() {
+      document.querySelectorAll('[data-enter]').forEach(btn => {
+        btn.onclick = () => enterTeam(btn.dataset.enter);
+      });
+      document.querySelectorAll('[data-delete]').forEach(btn => {
+        btn.onclick = () => removeTeam(btn.dataset.delete);
+      });
+    }
+
+    addBtn.addEventListener('click', addWaiting);
+    [teamNameEl, peopleCountEl, memoEl].forEach(el => {
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addWaiting();
+      });
+    });
+
+    const q = query(queueRef, orderBy('createdAt', 'asc'));
+    onSnapshot(q, snapshot => {
+      const rows = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+      const big = rows.filter(v => v.roomType === 'big');
+      const small = rows.filter(v => v.roomType === 'small');
+      document.getElementById('bigBoard').innerHTML = renderTable(big);
+      document.getElementById('smallBoard').innerHTML = renderTable(small);
+      bindButtons();
+    });
+  </script>
+</body>
+</html>
