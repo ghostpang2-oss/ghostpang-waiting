@@ -1,92 +1,161 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>고스트팡 대기 목록</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>고스트팡 대기 목록</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-<style>
-body{
-font-family:Arial;
-background:black;
-color:white;
-text-align:center;
-}
+    body {
+      margin: 0;
+      background: #000;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
 
-h1{
-color:orange;
-}
+    .wrap {
+      width: 100%;
+      min-height: 100vh;
+      padding: 20px 24px 40px;
+    }
 
-.container{
-display:flex;
-justify-content:center;
-gap:50px;
-}
+    .title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      font-size: 42px;
+      font-weight: 800;
+      color: #fff;
+    }
 
-table{
-border-collapse:collapse;
-width:400px;
-}
+    .title img {
+      height: 72px;
+      width: auto;
+      display: block;
+    }
 
-th,td{
-border:1px solid gray;
-padding:10px;
-}
+    .boards {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
 
-th{
-background:orange;
-}
-</style>
+    .board {
+      flex: 1 1 600px;
+      max-width: 720px;
+      min-width: 320px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #111318;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
 
+    .board-head {
+      height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .board.big .board-head {
+      background: #ff7a00;
+    }
+
+    .board.small .board-head {
+      background: #4285f4;
+    }
+
+    .board-body {
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 20px;
+      background: linear-gradient(180deg, #121419 0%, #0d0f13 100%);
+    }
+
+    .empty {
+      font-size: 22px;
+      color: #b7bcc7;
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #fff;
+    }
+
+    th, td {
+      padding: 14px 10px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 18px;
+    }
+
+    th {
+      color: #dfe3ea;
+      font-size: 15px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.03);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    @media (max-width: 900px) {
+      .title {
+        font-size: 30px;
+      }
+
+      .title img {
+        height: 56px;
+      }
+
+      .board-head {
+        font-size: 24px;
+        height: 78px;
+      }
+
+      .empty {
+        font-size: 18px;
+      }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="title">
+      <img src="블랙 고스트팡.png" alt="고스트팡">
+      <span>고스트팡 대기 목록</span>
+    </div>
 
-<h1>
-<img src="블랙 고스트팡.png" style="height:70px; vertical-align:middle; margin-right:10px;">
-고스트팡 대기 목록
-</h1>
+    <div class="boards">
+      <div class="board big">
+        <div class="board-head">큰방 대기</div>
+        <div class="board-body" id="bigBoard">
+          <div class="empty">현재 대기팀이 없습니다</div>
+        </div>
+      </div>
 
-<div class="container">
-
-<div>
-<h2>큰방</h2>
-<table>
-<tr>
-<th>순번</th>
-<th>팀</th>
-<th>인원</th>
-</tr>
-
-<tr>
-<td>1</td>
-<td>민수팀</td>
-<td>4</td>
-</tr>
-
-</table>
-</div>
-
-<div>
-<h2>작은방</h2>
-
-<table>
-<tr>
-<th>순번</th>
-<th>팀</th>
-<th>인원</th>
-</tr>
-
-<tr>
-<td>1</td>
-<td>지훈팀</td>
-<td>2</td>
-</tr>
-
-</table>
-
-</div>
-
-</div>
-
+      <div class="board small">
+        <div class="board-head">작은방 대기</div>
+        <div class="board-body" id="smallBoard">
+          <div class="empty">현재 대기팀이 없습니다</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
